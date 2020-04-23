@@ -100,12 +100,12 @@ v_step!(v::Array{Float64},u::Array{Float64},I::Array{Float64}) = @. v+0.5*((0.04
 u_step!(v::Array{Float64},u::Array{Float64},a::Array{Float64}) = @. u+a*(0.2*v-u)
 
 function s_step!(s::Array{Float64,2},sd::Array{Float64,2},DA::Float64,p::Parameters)
-    s[1:p.Ne,:] = max.(0,min.(p.sm,s[1:p.Ne,:] .+ (0.002+DA) .* sd[1:p.Ne,:]))
-    sd = @. 0.99*sd
+    s[1:p.Ne,:] .= max.(0,min.(p.sm,s[1:p.Ne,:] .+ (0.002+DA) .* sd[1:p.Ne,:]))
+    sd .= @. 0.99*sd
 end
 
 function shist_step!(shist::Array{Float64,2},s::Array{Float64,2},sd::Array{Float64,2},msec::Int64,sec::Int64,p::Parameters)
-    shist[msec_time(msec,sec),:] = [s[p.n1,p.syn],sd[p.n1,p.syn]]
+    shist[msec_time(msec,sec),:] .= [s[p.n1,p.syn],sd[p.n1,p.syn]]
 end
 
 function new_I!(index_I::Array{Tuple{Int64,Float64}})
@@ -131,7 +131,7 @@ function fireall_LTP!(net::NeuralNet,con::Connect,step::Step,p::Parameters,sec::
     end
     for k in fired
         pre_neurons_k = [con.pre[k][i][1] for i in 1:length(con.pre[k])]
-        net.sd[con.pre[k]] = net.sd[con.pre[k]]  .+  net.STDP[pre_neurons_k,msec]
+        net.sd[con.pre[k]] .= net.sd[con.pre[k]]  .+  net.STDP[pre_neurons_k,msec]
     end
     if p.n1 in fired
         append!(net.n1f,time)
@@ -165,9 +165,9 @@ function net_step!(net::NeuralNet,step::Step,p::Parameters,msec::Int64,sec::Int6
         net.DA += 0.5
     end
     I = new_I!(net.index_I)
-    net.v = v_step!(net.v,net.u,I)
-    net.v = v_step!(net.v,net.u,I)
-    net.u = u_step!(net.v,net.u,step.a)
+    net.v .= v_step!(net.v,net.u,I)
+    net.v .= v_step!(net.v,net.u,I)
+    net.u .= u_step!(net.v,net.u,step.a)
     if msec%10===0
         s_step!(net.s,net.sd,net.DA,p)
     end
@@ -185,13 +185,13 @@ end
 
 function main_loop!(net::NeuralNet,con::Connect,step::Step,p::Parameters)
     for sec in 0:p.T-1
-        @time for msec in 1:1000
+        for msec in 1:1000
             fireall_LTP!(net,con,step,p,sec,msec) #0.01 seconds 20k allocs 9MB
             LTD!(net,con,step,sec,msec) #0.0005 seconds 2k allocs 1MB
             net_step!(net,step,p,msec,sec)
         end
         time_reset!(net,p)
-        println("time = $sec")
+        println("time = $sec, firings size = $(size(net.firings))")
         if sec%100==0
             print("\rsec = $sec")
         end
@@ -200,3 +200,4 @@ end
 
 # %%
 main_loop!(net,con,step,p)
+#%%

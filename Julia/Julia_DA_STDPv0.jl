@@ -43,7 +43,7 @@ end
 
 STDP = zeros(N,1001+D)        # all synaptic traces stored in this matrix
 v = -65*ones(N)               # initial values of the membrane potentials (mV)
-u = 0.2*v                     # initial values of the eligibility trace
+u = 0.2*v                     # initial values of the membrane recovery variable
 firings = [-D 0];             # spike firing times
 
 # %% new parameter initialization related to DA-STDP
@@ -66,7 +66,7 @@ shist = zeros(1000*T, 2);    # recording for the plots (s-history)
 # %% Main loop of the simulation
 
 for sec in 0:(T-1)                               # 1 hour simulation time
-    for t in 1:1000                              # 1 sec simulation time
+    @time for t in 1:1000                              # 1 sec simulation time
         I=13*(rand(N).-0.5)
         fired = findall(x->x>=30,v)              # find the neurons that spiked
         v[fired] .= -65                          # reinitialize neurons that spiked to rest potential
