@@ -1,16 +1,35 @@
-# %% Define constants
+module DASTDP
 
-const M= 100
+
+##### Exports
+
+export STDP_fire!
+export LTP!
+export LTD!
+export DA_STDP_step!
+export synweight_step!
+export reward_fire!
+export DA_inc!
+export time_reset!
+export M
+export D
+export Ne
+export N
+export n1
+export syn
+
+##### Constants
+
+
+const M = 100
 const D = 1
 const Ne = 800
 const Ni = 200
 const N = Ne+Ni
 const sm = 4
-const T = 3600
 const n1 = 1
 const syn= 1
 const interval = 20
-
 
 post_tmp = vcat(rand(1:N,Ne,M),rand(1:Ne,Ni,M))
 const n2 = post_tmp[n1,syn]
@@ -32,58 +51,7 @@ const pre = pre_tmp
 const delays = delays_tmp
 
 
-const a = [(i<=Ne) ? 0.02 : 0.1 for i in 1:N]
-const d = [(i<=Ne) ? 8.0 : 2.0 for i in 1:N]
-
-const thresh = 30;
-
-# %% define network struct
-
-mutable struct NeuralNet
-    v::Array{Float64}
-    u::Array{Float64}
-    s::Array{Float64,2}
-    sd::Array{Float64,2}
-    STDP::Array{Float64,2}
-    firings::Array{Int64,2}
-    DA::Float64
-    rew::Array{Int64}
-    n1f::Array{Int64}
-    n2f::Array{Int64}
-    I::Array{Float64}
-
-    function NeuralNet()
-        v = -65.0*ones(N)
-        u = 0.2*v
-        s = vcat(1.0 .* ones(Ne,M),-1.0 .* ones(Ni,M))
-        s[n1,syn] = 0.0
-        sd = 0.0 .* zeros(N,M)
-        STDP = 0.0 .* zeros(N,1001+D)
-        firings = [-D*1.0 0.0]
-        DA = 0.0
-        rew = []
-        n1f = [-100]
-        n2f = []
-        I = Float64[]
-        new(v,u,s,sd,STDP,firings,DA,rew,n1f,n2f,I)
-    end
-end
-
-
-# %% functions
-
-function izhikevicmodel_step!(v::Array{Float64},u::Array{Float64},I::Array{Float64}) # Module neuron_model
-    v .= @. v+0.5*((0.04*v+5)*v+140-u+I)
-    v .= @. v+0.5*((0.04*v+5)*v+140-u+I)
-    u .= @. u+a*(0.2*v-u)
-end
-
-function izhikevicmodel_fire!(v::Array{Float64},u::Array{Float64},fired::Array{Int64}) # Module neuron_model
-    if length(fired) != 0
-        v[fired] .= -65.0
-        u[fired] .= u[fired] .+ d[fired]
-    end
-end
+##### Functions
 
 function STDP_fire!(STDP::Array{Float64,2},fired::Array{Int64},msec::Int64) # Module DA_STDP
     if length(fired) != 0
@@ -101,7 +69,7 @@ end
 function LTD!(STDP::Array{Float64,2},sd::Array{Float64,2},s::Array{Float64,2},firings::Array{Int64,2},I::Array{Float64},time::Int64,msec::Int64) # Module DA_STDP
     last_ = length(firings[:,1])
     while firings[last_,1]>time-D
-        del = delays[firings[last_,2]][time-net.firings[last_,1]+1]
+        del = delays[firings[last_,2]][time-firings[last_,1]+1]
         ind = post[firings[last_,2], del]
         I[ind] = I[ind] .+ s[firings[last_,2],del]
         sd[firings[last_,2],del] = sd[firings[last_,2],del] .- (1.5 .* STDP[ind,msec+D])
@@ -143,28 +111,4 @@ function time_reset!(STDP::Array{Float64,2},firings::Array{Int64,2}) # Module DA
     firings = vcat([-D 0],hcat(firings[ind,1] .- 1000,firings[ind,2]))
 end
 
-
-#%% main loop
-
-net = NeuralNet()
-
-@inbounds for sec in 0:T-1
-    @time @inbounds for msec in 1:1000
-        net.I = 13*(rand(N).-0.5)
-        time = 1000*sec+msec
-        fired = findall(x->x>=thresh,net.v)
-        izhikevicmodel_fire!(net.v,net.u,fired)
-        STDP_fire!(net.STDP,fired,msec)
-        reward_fire!(net.n1f,net.n2f,net.rew,fired,time)
-        LTP!(net.STDP,net.sd,fired,msec)
-        net.firings = vcat(net.firings,hcat(msec.*ones(length(fired)),fired))
-        LTD!(net.STDP,net.sd,net.s,net.firings,net.I,time,msec)
-        izhikevicmodel_step!(net.v,net.u,net.I)
-        DA_STDP_step!(net.STDP,net.DA,msec)
-        DA_inc!(net.rew,net.DA,time)
-    end
-    time_reset!(net.STDP,net.firings)
-    if sec%100==0
-        print("\rsec = $sec")
-    end
-end
+end #end of module
