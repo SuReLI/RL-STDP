@@ -74,13 +74,13 @@ for sec in 0:(T-1)                               # 1 hour simulation time
             pre_neurons_k = [pre[k][i][1] for i in 1:length(pre[k])]
             sd[pre[k]] = sd[pre[k]]  .+  STDP[pre_neurons_k,t]                 # increase the syn. der. by the (syn.trace)x1 (remember to RECHECK (t) vs (t+1))
         end
-        global firings = Int64.(vcat(firings,hcat((t).*ones(length(fired)),fired)))    # actualize the list of firing times with the corresponding spiking neuron
+        global firings = Int64.(vcat(firings,hcat(t*ones(length(fired)),fired)))    # actualize the list of firing times with the corresponding spiking neuron
         last_ = length(firings[:,1])
-        while firings[last_,1]>t-D
-            del = Int64(delays[firings[last_,2]][t-firings[last_,1]+1])
+        while firings[last_,1]>sec*1000+t-D
+            del = Int64(delays[firings[last_,2]][sec*1000+t-firings[last_,1]+1])
             ind = post[firings[last_,2], del]
             I[ind] += s[firings[last_,2],del]
-            global sd[firings[last_,2],del] = sd[firings[last_,2],del] .-1.5*STDP[ind,t+D]
+            sd[firings[last_,2],del] = sd[firings[last_,2],del] .-1.5*STDP[ind,t+D]
             last_ -= 1
         end
         global v=v+0.5.*((0.04.*v.+5).*v.+140-u+I)
@@ -109,19 +109,7 @@ for sec in 0:(T-1)                               # 1 hour simulation time
     STDP[:,1:D+1]=STDP[:,1001:1001+D]
     ind = findall(x->x>1001-D,firings[:,1])
     global firings = Int64.(vcat([-D 0],hcat(firings[ind,1].-1000,firings[ind,2])))
-    if sec%10==0
+    if sec%100==0
         print("\rsec = $sec")
     end
 end
-
-# %% Plot learning of the targeted synapse
-using Plots
-gr()
-x1 = 0.001.*collect(1:length(shist[:,1]))
-y1 = shist[:,1]
-x2 = x1
-y2 = shist[:,2]
-fig = plot(xlims = (0,300))
-plot!(x1,y1,color="blue",label="synapse weight", legend = true)
-plot!(x2,y2,color="green",label="eligibilty trace", legend = true)
-xlabel!("Time (sec)")

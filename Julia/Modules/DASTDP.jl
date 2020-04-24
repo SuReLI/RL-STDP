@@ -3,14 +3,14 @@ module DASTDP
 
 ##### Exports
 
-export STDP_fire!
-export LTP!
-export LTD!
-export DA_STDP_step!
-export synweight_step!
-export reward_fire!
-export DA_inc!
-export time_reset!
+export STDP_fire
+export LTP
+export LTD
+export DA_STDP_step
+export synweight_step
+export reward_fire
+export DA_inc
+export time_reset
 export M
 export D
 export Ne
@@ -53,41 +53,48 @@ const delays = delays_tmp
 
 ##### Functions
 
-function STDP_fire!(STDP::Array{Float64,2},fired::Array{Int64},msec::Int64) # Module DA_STDP
+function STDP_fire(STDP::Array{Float64,2},fired::Array{Int64},msec::Int64) # Module DA_STDP
     if length(fired) != 0
         STDP[fired,msec+D] .= 0.1
     end
+    return STDP
 end
 
-function LTP!(STDP::Array{Float64,2},sd::Array{Float64,2},fired::Array{Int64},msec::Int64)  # Module DA_STDP
+function LTP(STDP::Array{Float64,2},sd::Array{Float64,2},fired::Array{Int64},msec::Int64)  # Module DA_STDP
     for neuron in fired
         pre_neurons = [pre[neuron][i][1] for i in eachindex(pre[neuron])]
         sd[pre[neuron]] .= sd[pre[neuron]] .+ STDP[pre_neurons,msec]
     end
+    return sd
 end
 
-function LTD!(STDP::Array{Float64,2},sd::Array{Float64,2},s::Array{Float64,2},firings::Array{Int64,2},I::Array{Float64},time::Int64,msec::Int64) # Module DA_STDP
+function LTD(STDP::Array{Float64,2},sd::Array{Float64,2},s::Array{Float64,2},firings::Array{Int64,2},I::Array{Float64},msec::Int64) # Module DA_STDP
     last_ = length(firings[:,1])
-    while firings[last_,1]>time-D
-        del = delays[firings[last_,2]][time-firings[last_,1]+1]
+    while firings[last_,1]>msec-D
+        del = delays[firings[last_,2]][msec-firings[last_,1]+1]
         ind = post[firings[last_,2], del]
         I[ind] = I[ind] .+ s[firings[last_,2],del]
         sd[firings[last_,2],del] = sd[firings[last_,2],del] .- (1.5 .* STDP[ind,msec+D])
         last_ -= 1
     end
+    return I,sd
 end
 
-function DA_STDP_step!(STDP::Array{Float64,2},DA::Float64,msec::Int64) # Module DA_STDP
+function DA_STDP_step(STDP::Array{Float64,2},DA::Float64,msec::Int64) # Module DA_STDP
     STDP[:,msec+D+1] .= 0.95 .* STDP[:,msec+D]
     DA = DA*0.995
+    return STDP,DA
 end
 
-function synweight_step!(sd::Array{Float64,2},s::Array{Float64,2},DA::Float64) # Module DA_STDP
-    s[1:Ne,:] = max.(0,min.(sm,s[1:Ne,:] .+ ((0.002+DA) .* sd[1:Ne,:])))
-    sd = 0.99 .* sd
+function synweight_step(sd::Array{Float64,2},s::Array{Float64,2},DA::Float64,msec::Int64) # Module DA_STDP
+    if msec%10==0
+        s[1:Ne,:] .= max.(0,min.(sm,s[1:Ne,:] .+ ((0.002+DA) .* sd[1:Ne,:])))
+        sd = 0.99*sd
+    end
+    return s,sd
 end
 
-function reward_fire!(n1f::Array{Int64},n2f::Array{Int64},rew::Array{Int64},fired::Array{Int64},time::Int64) # Module DA_STDP
+function reward_fire(n1f::Array{Int64},n2f::Array{Int64},rew::Array{Int64},fired::Array{Int64},time::Int64) # Module DA_STDP
     if n1 in fired
         append!(n1f,time)
     end
@@ -97,18 +104,21 @@ function reward_fire!(n1f::Array{Int64},n2f::Array{Int64},rew::Array{Int64},fire
             append!(rew,time+1000+rand(1:2000))
         end
     end
+    return n1f,n2f,rew
 end
 
-function DA_inc!(rew::Array{Int64},DA::Float64,time::Int64) # Module DA_STDP
+function DA_inc(rew::Array{Int64},DA::Float64,time::Int64) # Module DA_STDP
     if time in rew
         DA += 0.5
     end
+    return DA
 end
 
-function time_reset!(STDP::Array{Float64,2},firings::Array{Int64,2}) # Module DA_STDP
+function time_reset(STDP::Array{Float64,2},firings::Array{Int64,2}) # Module DA_STDP
     STDP[:,1:D+1]=STDP[:,1001:1001+D]
     ind = findall(x->x>1001-D,firings[:,1])
-    firings = vcat([-D 0],hcat(firings[ind,1] .- 1000,firings[ind,2]))
+    firings = vcat([-D 0],hcat(firings[ind,1].-1000,firings[ind,2]))
+    return STDP,firings
 end
 
 end #end of module
