@@ -8,9 +8,33 @@ using .NeuronModel
 
 # %% Constants
 
-const Ni = 200
 const T = 3600
-const thresh = 30;
+const n1 = 1
+const syn = 1
+const n2 = post[n1,syn]
+const interval = 20
+
+# %% reward functions
+
+function reward(n1f::Array{Int64},n2f::Array{Int64},rew::Array{Int64},fired::Array{Int64},time::Int64) # Module DA_STDP
+    if n1 in fired
+        append!(n1f,time)
+    end
+    if n2 in fired
+        append!(n2f,time)
+        if (time-last(n1f)<interval) && (last(n2f)>last(n1f))
+            append!(rew,time+1000+rand(1:2000))
+        end
+    end
+    return n1f,n2f,rew
+end
+
+function DA_inc(rew::Array{Int64},DA::Float64,time::Int64) # Module DA_STDP
+    if time in rew
+        DA += 0.5
+    end
+    return DA
+end
 
 # %% Network Structure
 
@@ -62,7 +86,7 @@ net = NeuralNet()
         net.v,net.u = izhikevicmodel_step(net.v,net.u,net.I)
         net.STDP,net.DA = DA_STDP_step(net.STDP,net.DA,msec)
         net.s,net.sd = synweight_step(net.sd,net.s,net.DA,msec)
-        net.n1f,net.n2f,net.rew = reward_fire(net.n1f,net.n2f,net.rew,fired,time)
+        net.n1f,net.n2f,net.rew = reward(net.n1f,net.n2f,net.rew,fired,time)
         net.DA = DA_inc(net.rew,net.DA,time)
         net.shist[time,:] = [net.s[n1,syn],net.sd[n1,syn]]
     end
@@ -79,7 +103,7 @@ x1 = 0.001.*collect(1:length(net.shist[:,1]))
 y1 = net.shist[:,1]
 x2 = x1
 y2 = 10*net.shist[:,2]
-fig = plot(xlims = (0,250))
+fig = plot()
 plot!(x1,y1,color="blue",label="synapse weight", legend = true)
 plot!(x2,y2,color="green",label="eligibilty trace", legend = true)
 xlabel!("Time (sec)")

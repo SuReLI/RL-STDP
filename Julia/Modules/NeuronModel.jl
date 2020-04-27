@@ -2,12 +2,13 @@ module NeuronModel
 
 export izhikevicmodel_fire
 export izhikevicmodel_step
-
+export thresh
 
 const N = 1000
 const Ne = 800
 const a = [(i<=Ne) ? 0.02 : 0.1 for i in 1:N]
 const d = [(i<=Ne) ? 8.0 : 2.0 for i in 1:N]
+const thresh = 30
 
 function izhikevicmodel_step(v::Array{Float64},u::Array{Float64},I::Array{Float64}) # Module neuron_model
     v .= @. v+0.5*((0.04*v+5)*v+140-u+I)

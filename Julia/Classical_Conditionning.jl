@@ -1,115 +1,112 @@
-# %% Parameter variables
+# %% Modules
 
-const M = 100          # Number of synapses per neurons
-const D = 1            # Maximal Conduction Delay (msec)
-const Ne = 800         # Excitatory neuron population size
-const Ni = 200         # Inhibitory neuron population size
-const N = Ne + Ni      # Total neuron population size
-const sm = 4           # Max synaptic strength (mV)
+include("Modules/NeuronModel.jl")
+include("Modules/DASTDP.jl")
 
-const a = [(i<=Ne) ? 0.02 : 0.1 for i in 1:N]
-const d = [(i<=Ne) ? 8 : 2 for i in 1:N]
+using .DASTDP
+using .NeuronModel
+using Statistics
 
-const post = vcat(rand(1:N,Ne,M),rand(1:Ne,Ni,M));  # Creates the 100 random connections per neuron allowing E->I, E->E, I->E and not I->I (CONNEXION MATRIX)
+# %% Constants
 
-s = vcat(ones(Ne,M),-ones(Ni,M))   # synaptic strength 1 for excitatory and -1 for inhibitory (SYNAPTIC WEIGHTS)
-sd = zeros(N,M);                   # synaptic eligibility trace
+const S = [rand(1:800,50) for _ in 1:100] # Stimulis Sk
+const T = 3600
 
+# %% functions
 
-# %% Initailizing delays and STDP
-
-delays = []
-pre = []
-
-for i in 1:N
-    if i <= Ne
-        del_temp = []
-        for j in 1:D
-            start = (M/D)*(j-1)+1
-            fin = M/D*(j)
-            append!(del_temp,[collect(start:fin)])
-        end
-    else
-        del_temp = [[] for i in 1:D]
-        del_temp[1] = collect(1:M)
-    end
-    global delays = vcat(delays,del_temp)
-    append!(pre,[collect([index for index in findall(x->x==i,post) if s[index]>0])]) # find the pre excitatory neurons of neuron i
+function stimuli_fire(s_index::Int64,I::Array{Float64})
+    ind = S[s_index]
+    I[ind] = I[ind] .+ 200
+    return I
 end
 
-STDP = zeros(N,1001+D)        # all synaptic traces stored in this matrix
-v = -65*ones(N)               # initial values of the membrane potentials (mV)
-u = 0.2*v                     # initial values of the membrane recovery variable
-firings = [-D 0];             # spike firing times
+function means(s::Array{Float64,2})
+    mean_cs = mean(s[S[1],:])
+    mean_us = mean([mean(s[S[index],:]) for index in 2:50])
+    return mean_cs,mean_us
+end
 
-# %% new parameter initialization related to DA-STDP
-
-const T = 3600                     # total simulation time (sec)
-DA = 0                       # dopamine level above baseline
-rew = []                     # reward attribution times
-
-const n1 = 1                       # presynaptic targeted neuron for the simulation
-const syn = 1                      # targeted synapse
-const n2 = post[n1,syn]            # postsynaptic targeted neuron
-s[n1,syn] = 0                # targeted synapse's weight initialized to 0
-
-const interval = 20                # tolerated spike time interval between n1 and n2 for reward attribution (msec)
-n1f = [-100]                 # final spike time of n1 (msec)
-n2f = []                     # final spike time of n2 (msec)
-
-shist = zeros(1000*T, 2);    # recording for the plots (s-history)
-
-# %% Main loop of the simulation
-
-for sec in 0:(T-1)                               # 1 hour simulation time
-    @time for t in 1:1000                              # 1 sec simulation time
-        I=13*(rand(N).-0.5)
-        fired = findall(x->x>=30,v)              # find the neurons that spiked
-        v[fired] .= -65                          # reinitialize neurons that spiked to rest potential
-        u[fired] = u[fired]+d[fired]
-        if length(fired)!=0
-            STDP[fired,t+D] .= 0.1               # incerment the appropriate synaptic trace
-        end
-        for k in fired
-            pre_neurons_k = [pre[k][i][1] for i in 1:length(pre[k])]
-            sd[pre[k]] = sd[pre[k]]  .+  STDP[pre_neurons_k,t]                 # increase the syn. der. by the (syn.trace)x1 (remember to RECHECK (t) vs (t+1))
-        end
-        global firings = Int64.(vcat(firings,hcat(t*ones(length(fired)),fired)))    # actualize the list of firing times with the corresponding spiking neuron
-        last_ = length(firings[:,1])
-        while firings[last_,1]>sec*1000+t-D
-            del = Int64(delays[firings[last_,2]][sec*1000+t-firings[last_,1]+1])
-            ind = post[firings[last_,2], del]
-            I[ind] += s[firings[last_,2],del]
-            sd[firings[last_,2],del] = sd[firings[last_,2],del] .-1.5*STDP[ind,t+D]
-            last_ -= 1
-        end
-        global v=v+0.5.*((0.04.*v.+5).*v.+140-u+I)
-        global v=v+0.5.*((0.04.*v.+5).*v.+140-u+I)
-        global u=u+a.*(0.2*v-u)
-        STDP[:,t+D+1] = 0.95*STDP[:,t+D]
-        global DA = DA*0.995
-        if t%10==0
-            s[1:Ne,:] = max.(0,min.(sm,s[1:Ne,:]+(0.002+DA)*sd[1:Ne,:]))
-            global sd = 0.99*sd
-        end
-        if n1 in fired
-            append!(n1f,sec*1000+t)
-        end
-        if n2 in fired
-            append!(n2f,sec*1000+t)
-            if (sec*1000+t-last(n1f)<interval) && (last(n2f)>last(n1f))
-                append!(rew,sec*1000+t+1000+rand(1:2000))
-            end
-        end
-        if (sec*1000+t) in rew
-            DA += 0.5
-        end
-        shist[1000*sec+t,:] = [s[n1,syn],sd[n1,syn]]
+function reward(rew::Array{Int64},s_index::Int64,time::Int64)
+    if s_index == 1
+        append!(rew,time+rand(1:1000))
     end
-    STDP[:,1:D+1]=STDP[:,1001:1001+D]
-    ind = findall(x->x>1001-D,firings[:,1])
-    global firings = Int64.(vcat([-D 0],hcat(firings[ind,1].-1000,firings[ind,2])))
+    return rew
+end
+
+
+# %% Network structure
+
+mutable struct NeuralNet
+    v::Array{Float64}
+    u::Array{Float64}
+    s::Array{Float64,2}
+    sd::Array{Float64,2}
+    STDP::Array{Float64,2}
+    firings::Array{Int64,2}
+    DA::Float64
+    rew::Array{Int64}
+    s_del::Array{Int64}
+    I::Array{Float64}
+    shist::Array{Float64,2}
+
+    function NeuralNet()
+        v = -65.0*ones(N)
+        u = 0.2*v
+        s = vcat(0.5 .* ones(Ne,M),-0.5 .* ones(Ni,M))
+        sd = 0.0 .* zeros(N,M)
+        STDP = 0.0 .* zeros(N,1001+D)
+        firings = [-D 0]
+        DA = 0.0
+        rew = []
+        s_del = [0,0]
+        I = Float64[]
+        shist = zeros(1000*T, 2)
+        new(v,u,s,sd,STDP,firings,DA,rew,s_del,I,shist)
+    end
+end
+
+# %% main loop
+
+net = NeuralNet()
+
+for sec in 0:T-1
+    @time for msec in 1:1000
+        net.I = 13*(rand(N).-0.5)
+        time = 1000*sec+msec
+        fired = findall(x->x>=thresh,net.v)
+        net.v,net.u = izhikevicmodel_fire(net.v,net.u,fired)
+        net.STDP = STDP_fire(net.STDP,fired,msec)
+        net.sd = LTP(net.STDP,net.sd,fired,msec)
+        net.firings = vcat(net.firings,hcat(msec.*ones(length(fired)),fired))
+        net.I,net.sd = LTD(net.STDP,net.sd,net.s,net.firings,net.I,msec)
+        if net.s_del[1] == net.s_del[2]
+            s_index = rand(1:100)
+            net.I = stimuli_fire(s_index,net.I)
+            net.s_del = [0,rand(100:300)]
+            net.rew = reward(net.rew,s_index,time)
+        end
+        net.v,net.u = izhikevicmodel_step(net.v,net.u,net.I)
+        net.STDP,net.DA = DA_STDP_step(net.STDP,net.DA,msec)
+        net.s,net.sd = synweight_step(net.sd,net.s,net.DA,msec)
+        net.DA = DA_inc(net.rew,net.DA,time)
+        net.shist[time,:] .= means(net.s)
+        net.s_del[1] += 1
+    end
+    net.STDP,net.firings = time_reset(net.STDP,net.firings)
     if sec%100==0
         print("\rsec = $sec")
     end
 end
+
+# %% Plot means
+using Plots
+gr()
+x1 = 0.001.*collect(1:length(net.shist[:,1]))
+y1 = net.shist[:,1]
+x2 = x1
+y2 = net.shist[:,2]
+fig = plot()
+plot!(x1,y1,color="blue",label="from S1", legend = true)
+plot!(x2,y2,color="green",label="mean", legend = true)
+xlabel!("Time (sec)")
+ylabel!("synaptic weigth (mV)")

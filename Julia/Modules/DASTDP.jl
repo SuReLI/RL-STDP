@@ -8,15 +8,15 @@ export LTP
 export LTD
 export DA_STDP_step
 export synweight_step
-export reward_fire
 export DA_inc
 export time_reset
 export M
 export D
+export Ni
 export Ne
 export N
-export n1
-export syn
+export post
+export pre
 
 ##### Constants
 
@@ -27,12 +27,10 @@ const Ne = 800
 const Ni = 200
 const N = Ne+Ni
 const sm = 4
-const n1 = 1
-const syn= 1
-const interval = 20
+
 
 post_tmp = vcat(rand(1:N,Ne,M),rand(1:Ne,Ni,M))
-const n2 = post_tmp[n1,syn]
+
 
 function initcon(N,M,post)
     delays = Array{Int64}[]
@@ -92,19 +90,6 @@ function synweight_step(sd::Array{Float64,2},s::Array{Float64,2},DA::Float64,mse
         sd = 0.99*sd
     end
     return s,sd
-end
-
-function reward_fire(n1f::Array{Int64},n2f::Array{Int64},rew::Array{Int64},fired::Array{Int64},time::Int64) # Module DA_STDP
-    if n1 in fired
-        append!(n1f,time)
-    end
-    if n2 in fired
-        append!(n2f,time)
-        if (time-last(n1f)<interval) && (last(n2f)>last(n1f))
-            append!(rew,time+1000+rand(1:2000))
-        end
-    end
-    return n1f,n2f,rew
 end
 
 function DA_inc(rew::Array{Int64},DA::Float64,time::Int64) # Module DA_STDP
