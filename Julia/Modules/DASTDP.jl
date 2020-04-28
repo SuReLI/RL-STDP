@@ -26,7 +26,7 @@ const D = 1
 const Ne = 800
 const Ni = 200
 const N = Ne+Ni
-const sm = 4
+
 
 
 post_tmp = vcat(rand(1:N,Ne,M),rand(1:Ne,Ni,M))
@@ -51,9 +51,9 @@ const delays = delays_tmp
 
 ##### Functions
 
-function STDP_fire(STDP::Array{Float64,2},fired::Array{Int64},msec::Int64) # Module DA_STDP
+function STDP_fire(STDP::Array{Float64,2},fired::Array{Int64},msec::Int64,STDPinc::Float64=0.1) # Module DA_STDP
     if length(fired) != 0
-        STDP[fired,msec+D] .= 0.1
+        STDP[fired,msec+D] .= STDPinc
     end
     return STDP
 end
@@ -66,7 +66,7 @@ function LTP(STDP::Array{Float64,2},sd::Array{Float64,2},fired::Array{Int64},mse
     return sd
 end
 
-function LTD(STDP::Array{Float64,2},sd::Array{Float64,2},s::Array{Float64,2},firings::Array{Int64,2},I::Array{Float64},msec::Int64) # Module DA_STDP
+function LTD(STDP::Array{Float64,2},sd::Array{Float64,2},s::Array{Float64,2},firings::Array{Int64,2},I::Array{Float64},msec::Int64,LTDinc::Float64=1.5) # Module DA_STDP
     last_ = length(firings[:,1])
     while firings[last_,1]>msec-D
         del = delays[firings[last_,2]][msec-firings[last_,1]+1]
@@ -84,7 +84,7 @@ function DA_STDP_step(STDP::Array{Float64,2},DA::Float64,msec::Int64) # Module D
     return STDP,DA
 end
 
-function synweight_step(sd::Array{Float64,2},s::Array{Float64,2},DA::Float64,msec::Int64) # Module DA_STDP
+function synweight_step(sd::Array{Float64,2},s::Array{Float64,2},DA::Float64,msec::Int64,sm::Int64=4) # Module DA_STDP
     if msec%10==0
         s[1:Ne,:] .= max.(0,min.(sm,s[1:Ne,:] .+ ((0.002+DA) .* sd[1:Ne,:])))
         sd = 0.99*sd
@@ -92,9 +92,9 @@ function synweight_step(sd::Array{Float64,2},s::Array{Float64,2},DA::Float64,mse
     return s,sd
 end
 
-function DA_inc(rew::Array{Int64},DA::Float64,time::Int64) # Module DA_STDP
+function DA_inc(rew::Array{Int64},DA::Float64,time::Int64,DAinc::Float64=0.5) # Module DA_STDP
     if time in rew
-        DA += 0.5
+        DA += DAinc
     end
     return DA
 end
