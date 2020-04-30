@@ -58,10 +58,10 @@ function STDP_fire(STDP::Array{Float64,2},fired::Array{Int64},msec::Int64,STDPin
     return STDP
 end
 
-function LTP(STDP::Array{Float64,2},sd::Array{Float64,2},fired::Array{Int64},msec::Int64)  # Module DA_STDP
+function LTP(STDP::Array{Float64,2},sd::Array{Float64,2},fired::Array{Int64},msec::Int64,LTPinc::Float64=1.0)  # Module DA_STDP
     for neuron in fired
         pre_neurons = [pre[neuron][i][1] for i in eachindex(pre[neuron])]
-        sd[pre[neuron]] .= sd[pre[neuron]] .+ STDP[pre_neurons,msec]
+        sd[pre[neuron]] .= sd[pre[neuron]] .+ LTPinc .* STDP[pre_neurons,msec]
     end
     return sd
 end
@@ -69,11 +69,11 @@ end
 function LTD(STDP::Array{Float64,2},sd::Array{Float64,2},s::Array{Float64,2},firings::Array{Int64,2},I::Array{Float64},msec::Int64,LTDinc::Float64=1.5) # Module DA_STDP
     last_ = length(firings[:,1])
     while firings[last_,1]>msec-D
-        del = delays[firings[last_,2]][msec-firings[last_,1]+1]
+        del = delays[firings[last_,2]]
         ind = post[firings[last_,2], del]
         I[ind] = I[ind] .+ s[firings[last_,2],del]
-        sd[firings[last_,2],del] = sd[firings[last_,2],del] .- (1.5 .* STDP[ind,msec+D])
-        last_ -= 1
+        sd[firings[last_,2],del] = sd[firings[last_,2],del] .- (LTDinc .* STDP[ind,msec+D])
+        last_ = last_ - 1
     end
     return I,sd
 end

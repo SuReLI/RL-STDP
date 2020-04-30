@@ -1,42 +1,40 @@
 # %% Modules
 
-include("Modules/DASTDP.jl")
-include("Modules/NeuronModel.jl")
+include("../Modules/NeuronModel.jl")
+include("../Modules/DASTDP.jl")
 
 using .DASTDP
 using .NeuronModel
+using Statistics
 
 # %% Constants
 
+const S = [rand(1:800,50) for _ in 1:100] # Stimulis Sk
 const T = 3600
-const n1 = 1
-const syn = 1
-const n2 = post[n1,syn]
-const interval = 20
 
-# %% reward functions
+# %% functions
 
-function reward(n1f::Array{Int64},n2f::Array{Int64},rew::Array{Int64},fired::Array{Int64},time::Int64) # Module DA_STDP
-    if n1 in fired
-        append!(n1f,time)
-    end
-    if n2 in fired
-        append!(n2f,time)
-        if (time-last(n1f)<interval) && (last(n2f)>last(n1f))
-            append!(rew,time+1000+rand(1:2000))
-        end
-    end
-    return n1f,n2f,rew
+function stimuli_fire(s_index::Int64,I::Array{Float64})
+    ind = S[s_index]
+    I[ind] = I[ind] .+ 200  #super threshold current
+    return I
 end
 
-function DA_inc(rew::Array{Int64},DA::Float64,time::Int64) # Module DA_STDP
-    if time in rew
-        DA += 0.5
-    end
-    return DA
+function means(s::Array{Float64,2})
+    mean_cs = mean(s[S[1],:])
+    mean_us = mean([mean(s[S[index],:]) for index in 2:50])
+    return mean_cs,mean_us
 end
 
-# %% Network Structure
+function reward(rew::Array{Int64},s_index::Int64,time::Int64)
+    if s_index == 1
+        append!(rew,time+rand(1:1000))
+    end
+    return rew
+end
+
+
+# %% Network structure
 
 mutable struct NeuralNet
     v::Array{Float64}
@@ -47,34 +45,32 @@ mutable struct NeuralNet
     firings::Array{Int64,2}
     DA::Float64
     rew::Array{Int64}
-    n1f::Array{Int64}
-    n2f::Array{Int64}
+    s_del::Array{Int64}
     I::Array{Float64}
     shist::Array{Float64,2}
 
     function NeuralNet()
         v = -65.0*ones(N)
         u = 0.2*v
-        s = vcat(1.0 .* ones(Ne,M),-1.0 .* ones(Ni,M))
-        s[n1,syn] = 0.0
+        s = vcat(0.5 .* ones(Ne,M),-0.5 .* ones(Ni,M))
         sd = 0.0 .* zeros(N,M)
         STDP = 0.0 .* zeros(N,1001+D)
-        firings = [-D*1.0 0.0]
+        firings = [-D 0]
         DA = 0.0
         rew = []
-        n1f = [-100]
-        n2f = []
+        s_del = [0,0]
         I = Float64[]
         shist = zeros(1000*T, 2)
-        new(v,u,s,sd,STDP,firings,DA,rew,n1f,n2f,I,shist)
+        new(v,u,s,sd,STDP,firings,DA,rew,s_del,I,shist)
     end
 end
-# %% Main loop
+
+# %% main loop
 
 net = NeuralNet()
 
-@inbounds for sec in 0:T-1
-    @time @inbounds for msec in 1:1000
+for sec in 0:T-1
+    @time for msec in 1:1000
         net.I = 13*(rand(N).-0.5)
         time = 1000*sec+msec
         fired = findall(x->x>=thresh,net.v)
@@ -83,12 +79,18 @@ net = NeuralNet()
         net.sd = LTP(net.STDP,net.sd,fired,msec)
         net.firings = vcat(net.firings,hcat(msec.*ones(length(fired)),fired))
         net.I,net.sd = LTD(net.STDP,net.sd,net.s,net.firings,net.I,msec)
+        if net.s_del[1] == net.s_del[2]
+            s_index = rand(1:100)
+            net.I = stimuli_fire(s_index,net.I)
+            net.s_del = [0,rand(100:300)]
+            net.rew = reward(net.rew,s_index,time)
+        end
         net.v,net.u = izhikevicmodel_step(net.v,net.u,net.I)
         net.STDP,net.DA = DA_STDP_step(net.STDP,net.DA,msec)
         net.s,net.sd = synweight_step(net.sd,net.s,net.DA,msec)
-        net.n1f,net.n2f,net.rew = reward(net.n1f,net.n2f,net.rew,fired,time)
         net.DA = DA_inc(net.rew,net.DA,time)
-        net.shist[time,:] = [net.s[n1,syn],net.sd[n1,syn]]
+        net.shist[time,:] .= means(net.s)
+        net.s_del[1] += 1
     end
     net.STDP,net.firings = time_reset(net.STDP,net.firings)
     if sec%100==0
@@ -96,14 +98,15 @@ net = NeuralNet()
     end
 end
 
-# %% Plot learning of the targeted synapse
+# %% Plot means
 using Plots
 gr()
 x1 = 0.001.*collect(1:length(net.shist[:,1]))
 y1 = net.shist[:,1]
 x2 = x1
-y2 = 10*net.shist[:,2]
+y2 = net.shist[:,2]
 fig = plot()
-plot!(x1,y1,color="blue",label="synapse weight", legend = true)
-plot!(x2,y2,color="green",label="eligibilty trace", legend = true)
+plot!(x1,y1,color="blue",label="from S1", legend = true)
+plot!(x2,y2,color="green",label="mean", legend = true)
 xlabel!("Time (sec)")
+ylabel!("synaptic weigth (mV)")
