@@ -35,9 +35,9 @@ const syn_SB = syn_SB_tmp
 const DAinc = 0.5
 const STDPinc = 0.1
 const sm = 4
-const LTPinc = 1.0 # 1.35
-const LTDinc = 1.8 # 2.15
-const I_inc = 18 # 150
+#const LTPinc = 1.0 # 1.35
+#const LTDinc = 1.5 # 2.15
+# const I_inc = 50 # 150
 
 
 # %% Network structure
@@ -77,7 +77,7 @@ end
 
 # %% Functions
 
-function stimuli_fire(I::Array{Float64})
+function stimuli_fire(I::Array{Float64},I_inc::Int64)
     I[S] = I[S] .+ I_inc
     return I
 end
@@ -129,58 +129,89 @@ function means(s::Array{Float64,2},sd::Array{Float64,2})
     return mean_SA,mean_SB,max_SA,min_SA,max_SB,min_SB
 end
 
+# %% Plot function synaptic weight in A and B
+using Plots
+gr()
+
+function plot_syn(shist::Array{Float64,2},I_inc::Int64,LTPinc::Float64,LTDinc::Float64, save::Bool = false)
+    x1 = 0.1.*collect(1:length(shist[:,1]))
+    y1 = shist[:,1]
+    x2 = x1
+    y2 = shist[:,2]
+    fig = plot(title = "I = $(I_inc)_LTP=$(LTPinc)_LTD=$(LTDinc)")
+    plot!(x1,y1,color="blue",label="S->A", legend = true)
+    plot!(x2,y2,color="green",label="S->B", legend = true)
+    xlabel!("Time (sec)")
+    ylabel!("mean synaptic weigth (mV)")
+    if save == true
+        savefig("Julia/Izhikevic_dastdp/Grid_plots/test_I=$(I_inc)_LTP=$(LTPinc)_LTD=$(LTDinc).png")
+    end
+end
+
+
+
+
 
 # %% Main loop
 
-net = NeuralNet()
+I_param = collect(10:4:20)
+LTP_param = [1.0,1.1,1.2,1.3]
+ratios = [1.4,1.5,1.6]
 
-@inbounds for sec in 0:T-1
-    @time @inbounds for msec in 1:1000
-        net.I = 13*(rand(N).-0.5)
-        time = 1000*sec+msec
-        trial = div(sec,10)+1
-        fired = findall(x->x>=thresh,net.v)
-        net.v,net.u = izhikevicmodel_fire(net.v,net.u,fired)
-        net.STDP = STDP_fire(net.STDP,fired,msec)
-        net.sd = LTP(net.STDP,net.sd,fired,msec,LTPinc)
-        net.firings = vcat(net.firings,hcat(msec.*ones(length(fired)),fired))
-        net.I,net.sd = LTD(net.STDP,net.sd,net.s,net.firings,net.I,msec,LTDinc)
+for I_inc in I_param
+    for LTPinc in LTP_param
+        for ratio in ratios
+            LTDinc = LTPinc*ratio
+            net = NeuralNet()
+            @inbounds for sec in 0:T-1
+                @time @inbounds for msec in 1:1000
+                    net.I = 13*(rand(N).-0.5)
+                    time = 1000*sec+msec
+                    trial = div(sec,10)+1
+                    fired = findall(x->x>=thresh,net.v)
+                    net.v,net.u = izhikevicmodel_fire(net.v,net.u,fired)
+                    net.STDP = STDP_fire(net.STDP,fired,msec)
+                    net.sd = LTP(net.STDP,net.sd,fired,msec,LTPinc)
+                    net.firings = vcat(net.firings,hcat(msec.*ones(length(fired)),fired))
+                    net.I,net.sd = LTD(net.STDP,net.sd,net.s,net.firings,net.I,msec,LTDinc)
+                    if msec==1
+                        net.I = stimuli_fire(net.I,I_inc)
+                        net.card = [0,0]
+                    end
+                    if msec<=20
+                        net.card = cardAB(fired,net.card)
+                    end
+                    if msec==20
+                        net.rew = reward(net.rew,net.card,net.target,time)
+                        net.phist[trial,:] .= probAB(net.card,net.phist,trial)
+                    end
+                    net.v,net.u = izhikevicmodel_step(net.v,net.u,net.I)
+                    net.STDP,net.DA = DA_STDP_step(net.STDP,net.DA,msec)
+                    if msec%10==0
+                        net.s,net.sd = synweight_step(net.sd,net.s,net.DA,sm)
+                        if msec%100==0
+                            net.shist[div(time,100),:] .= means(net.s,net.sd)
+                        end
+                    end
+                    net.DA = DA_inc(net.rew,net.DA,time)
 
-        if msec==1
-            net.I = stimuli_fire(net.I)
-            net.card = [0,0]
-        end
-        if msec<=20
-            net.card = cardAB(fired,net.card)
-        end
-        if msec==20
-            net.rew = reward(net.rew,net.card,net.target,time)
-            net.phist[trial,:] .= probAB(net.card,net.phist,trial)
-        end
+                end
+                if sec==400
+                    net.target = 2
+                end
 
-        net.v,net.u = izhikevicmodel_step(net.v,net.u,net.I)
-        net.STDP,net.DA = DA_STDP_step(net.STDP,net.DA,msec)
-        if msec%10==0
-            net.s,net.sd = synweight_step(net.sd,net.s,net.DA,sm)
-            if msec%100==0
-                net.shist[div(time,100),:] .= means(net.s,net.sd)
+                net.STDP,net.firings = time_reset(net.STDP,net.firings)
             end
+            plot_syn(net.shist,I_inc,LTPinc,LTDinc,true)
         end
-        net.DA = DA_inc(net.rew,net.DA,time)
-
     end
-    if sec==400
-        net.target = 2
-    end
-    if sec%100==0
-        println("spike frequency = $(length(net.firings))")
-        print("\rsec = $sec")
-    end
-    net.STDP,net.firings = time_reset(net.STDP,net.firings)
 end
 
+
+
+
 # %% Plot probability
-using Plots
+ using Plots
 gr()
 x1 = collect(1:length(net.phist[:,1]))
 y1 = net.phist[:,1]
@@ -192,18 +223,7 @@ plot!(x2,y2,color="green",label="Group B", legend = true)
 xlabel!("Trial")
 ylabel!("Probability of response")
 
-# %% Plot synaptic weight in A and B
-using Plots
-gr()
-x1 = 0.1.*collect(1:length(net.shist[:,1]))
-y1 = net.shist[:,1]
-x2 = x1
-y2 = net.shist[:,2]
-fig = plot()
-plot!(x1,y1,color="blue",label="S->A", legend = true)
-plot!(x2,y2,color="green",label="S->B", legend = true)
-xlabel!("Time (sec)")
-ylabel!("mean synaptic weigth (mV)")
+
 
 # %% Plot enveloppe s for A and B
 using Plots

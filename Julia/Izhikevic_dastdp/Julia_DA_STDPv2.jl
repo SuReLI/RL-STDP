@@ -9,7 +9,7 @@ using Statistics
 
 # %% Constants
 
-const T = 3600
+const T = 2000
 const n1 = 1
 const syn = 45
 const n2 = post[n1,syn]
@@ -80,8 +80,12 @@ net = NeuralNet()
         net.I,net.sd = LTD(net.STDP,net.sd,net.s,net.firings,net.I,msec)
         net.v,net.u = izhikevicmodel_step(net.v,net.u,net.I)
         net.STDP,net.DA = DA_STDP_step(net.STDP,net.DA,msec)
-        net.s,net.sd = synweight_step(net.sd,net.s,net.DA,msec)
-        net.n1f,net.n2f,net.rew = reward(net.n1f,net.n2f,net.rew,fired,time)
+        if msec%10==0
+            net.s,net.sd = synweight_step(net.sd,net.s,net.DA,msec)
+        end
+        if sec<1000
+            net.n1f,net.n2f,net.rew = reward(net.n1f,net.n2f,net.rew,fired,time)
+        end
         net.DA = DA_inc(net.rew,net.DA,time)
         net.shist[time,:] = [net.s[n1,syn],net.sd[n1,syn]]
     end

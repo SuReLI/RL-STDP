@@ -58,10 +58,11 @@ function STDP_fire(STDP::Array{Float64,2},fired::Array{Int64},msec::Int64,STDPin
     return STDP
 end
 
+
 function LTP(STDP::Array{Float64,2},sd::Array{Float64,2},fired::Array{Int64},msec::Int64,LTPinc::Float64=1.0)  # Module DA_STDP
-    for neuron in fired
-        pre_neurons = [pre[neuron][i][1] for i in eachindex(pre[neuron])]
-        sd[pre[neuron]] .= sd[pre[neuron]] .+ LTPinc .* STDP[pre_neurons,msec]
+    for index in eachindex(fired)
+        pre_neurons = [pre[fired[index]][i][1] for i in eachindex(pre[fired[index]])]
+        sd[pre[fired[index]]] .= sd[pre[fired[index]]] .+ LTPinc .* STDP[pre_neurons,msec]
     end
     return sd
 end
@@ -84,11 +85,9 @@ function DA_STDP_step(STDP::Array{Float64,2},DA::Float64,msec::Int64) # Module D
     return STDP,DA
 end
 
-function synweight_step(sd::Array{Float64,2},s::Array{Float64,2},DA::Float64,msec::Int64,sm::Int64=4) # Module DA_STDP
-    if msec%10==0
-        s[1:Ne,:] .= max.(0,min.(sm,s[1:Ne,:] .+ ((0.002+DA) .* sd[1:Ne,:])))
-        sd = 0.99*sd
-    end
+function synweight_step(sd::Array{Float64,2},s::Array{Float64,2},DA::Float64,sm::Int64=4) # Module DA_STDP
+    s[1:Ne,:] .= clamp.(s[1:Ne,:] .+ ((0.002+DA) .* sd[1:Ne,:]),0,sm)
+    sd .= 0.99.*sd
     return s,sd
 end
 
