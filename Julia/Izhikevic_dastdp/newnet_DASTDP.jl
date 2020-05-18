@@ -3,7 +3,7 @@ include("../Modules/new_net.jl")
 
 # %%
 
-n = Network(1000,0.1,800)
+n = Network(237,0.1,125,[12,56,56,3])
 
 # %%
 
@@ -11,15 +11,13 @@ function post(neuron,connection)
     return findall(x->x==1,connection[neuron,:])
 end
 
-n1 = 2
-n2 = post(n1,n.connection)[1]
-interval = 20 #msec
+const n1 = 2
+const n2 = post(n1,n.connection)[1]
+const interval = 20 #msec
 
 n.s[n1,n2] = 0.0
-
 n1f = [-100]
 n2f = Int64[]
-
 rew = Int64[]
 
 function reward!(n1f::Array{Int64},n2f::Array{Int64},rew::Array{Int64},spiked::Array{Int64},time::Int64) # Module DA_STDP
@@ -34,7 +32,7 @@ function reward!(n1f::Array{Int64},n2f::Array{Int64},rew::Array{Int64},spiked::A
     end
 end
 
-shist = zeros(10*100,2)
+shist = zeros(10*3600,2)
 
 
 
@@ -43,10 +41,13 @@ shist = zeros(10*100,2)
 
 
 @inbounds for sec in 0:3599
-    @inbounds for msec in 1:1000
+    @time @inbounds for msec in 1:1000
         time = 1000*sec+msec
-        train = (msec%10==0) ? true : false
-        spiked = step!(n,train)
+        s_inc = false
+        if msec%10 == 0
+            s_inc = true
+        end
+        spiked = step!(n,true,s_inc)
         reward!(n1f,n2f,rew,spiked,time)
         if time in rew
             n.da += 0.5

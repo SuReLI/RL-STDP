@@ -87,12 +87,6 @@ function spike!(net::Network)
     spiked = findall(x->x>30,net.v)
     net.v[spiked] .= -65.0
     net.u[spiked] .+= net.d[spiked]
-    net.STDP[spiked] .= 0.1
-    # LTP & LTD
-    for neuron in spiked
-        net.sd[:,neuron] .+= 1.0 .* net.STDP
-        net.sd[neuron,:] .-= 1.5 .* net.STDP
-    end
     # increment current
     for neuron in spiked
         net.I .+= net.s[neuron,:]
@@ -101,37 +95,43 @@ function spike!(net::Network)
     net.v .= @. net.v+0.5*((0.04*net.v+5)*net.v+140-net.u+net.I)
     net.v .= @. net.v+0.5*((0.04*net.v+5)*net.v+140-net.u+net.I)
     net.u .= @. net.u+net.a*(0.2*net.v-net.u)
+    spiked
+end
+
+function learn!(net::Network,spiked::Array{Int64}, s_inc::Bool = false)
+    net.STDP[spiked] .= 0.1
+    # LTP & LTD
+    for neuron in spiked
+        net.sd[:,neuron] .+= 1.0 .* net.STDP
+        net.sd[neuron,:] .-= 1.5 .* net.STDP
+    end
+    # MAKE THIS HAPPEN EVERY 10 MSEC
+    if s_inc
+        net.s[net.exc,:] .+= (0.002+net.da) .* net.sd[net.exc,:]
+        net.s .*= net.connection
+        net.s .= clamp.(net.s,0,4)
+    end
     # time decay
     net.sd .*= 0.999
     net.STDP .*= 0.95
     net.da *= 0.995
-    spiked
-end
-
-function learn!(net::Network)
-    #@time net.s[net.exc,:] .= net.s[net.exc,:] + (0.002+net.da) .* net.sd[net.exc,:]
-    @time net.s[net.exc,:] .+= (0.002+net.da) .* net.sd[net.exc,:]
-    net.s .*= net.connection
-    net.s .= clamp.(net.s,0,4)
 end
 
 
 
-function step!(net::Network, train::Bool=false)
+function step!(net::Network, train::Bool=false, s_inc::Bool = false)
     spiked = spike!(net)
-    if train == true
-        learn!(net,spiked)
+    if train
+        learn!(net,spiked,s_inc)
     end
     spiked
 end
 
-function step!(net::Network, input_spikes::Array{Int64}, train::Bool=true)
+function step!(net::Network, input_spikes::Array{Int64}, train::Bool=false, s_inc::Bool = false)
     input!(net,input_spikes)
     spiked = spike!(net)
-    if train == true
-        learn!(net,spiked)
+    if train
+        learn!(net,spiked,s_inc)
     end
     spiked
 end
-
-# %% test the net by implementing basic DASTDP
