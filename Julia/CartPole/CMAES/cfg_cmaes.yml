@@ -1,0 +1,73 @@
+vthresh: -5.0
+vthresh_u: 100.0
+vthresh_d: -100.0
+
+ae: 0.014
+ae_u: 0.5
+ae_d: 0.01
+
+b: 1.11
+b_u: 5.0
+b_d: 0.05
+
+c: -10.0 #    (vthresh > c)
+c_u: 100.0
+c_d: -100
+
+de: 9.84
+de_u: 20.0
+de_d: 2.0
+
+m: 0.53
+m_u: 0.85
+m_d: 0.15
+
+std: 0.3
+std_u: 0.6
+std_d: 0.01
+
+# STDP
+apost: 1.66
+apost_u: 5.0
+apost_d: 0.2
+
+apre: 3.35 #  (apre > 1.1 apost)
+apre_u: 6.0
+apre_d: 0.3
+
+# Homeostasis
+# theta: 0.0
+# theta_u: 5.0
+# theta_d: 0.0
+#
+# ttheta: 0.998
+# ttheta_u: 0.999
+# ttheta_d: 0.99
+
+
+# Gaussgrid
+imax: 110.0
+imax_u: 400.0
+imax_d: 20.0
+
+imin: 50.0
+imin_u: 350.0
+imin_d: 0.0
+
+
+# Inhibition
+wei: 10.0
+wei_u: 100.0
+wei_d: 0.0
+
+wie: -1.0
+wie_u: 0.0
+wie_d: -50.0
+
+ai: 0.1
+ai_u: 0.5
+ai_d: 0.01
+
+di: 2.0
+di_u: 20.0
+di_d: 0.1

@@ -1,0 +1,18 @@
+ae: 0.02                                        # tunable
+ai: 0.1                                         # tunable
+b: 0.2 # (involved in the update of u)          # tunable
+c: -65.0 # mV (vreset)                          # tunable
+de: 8.0                                         # tunable
+di: 2.0                                         # tunable
+vthresh: 30 #mV
+wee: 1.0
+wei: 1.0
+wie: -1.0
+wmax: 4
+theta: 0.0 # mV increase in threshold
+ttheta: 0.998 # time decay of homeostasis
+imin: 50.0
+imax: 110.0
+apost: 1.0
+apre: 1.5
+tda: 0.995

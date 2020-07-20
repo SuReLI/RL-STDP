@@ -1,0 +1,26 @@
+vthresh: -50.0
+c: -70.0
+m: 0.6
+std: 0.4
+imin: 0.0
+imax: 30.0
+
+
+wei: 0
+wie: 0
+taulif: 0.45
+
+theta: 0.0
+ttheta: 0.998
+tda: 0.995
+wmax: 1
+apost: 1.66
+apre: 3.35
+
+de: 9.84
+b: 1.11
+wei: 0
+wie: 0
+ai: 0.1
+di: 2.0
+ae: 0.014
