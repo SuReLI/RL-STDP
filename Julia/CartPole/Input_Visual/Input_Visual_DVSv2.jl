@@ -1,4 +1,5 @@
 using PyCall
+using JLD
 
 gym = pyimport("gym")
 
@@ -8,7 +9,7 @@ f     = pyimport("torch.nn.functional")
 
 # %%
 
-include("../StateSpike/StateSpikeDVSv2.jl")
+include("../../Modules/DVS/StateSpikeDVSv2.jl")
 include("animation.jl")
 
 # %% network
@@ -83,11 +84,12 @@ function play_env(n_steps::Int64, render::Bool=false, random::Bool=false)
     x_spikes, y_spikes = scatter_spikes(display_spikes)
     env.close()
     env = nothing
-    plot()
-    anim = @animate for i in 1:n_steps
-        anim_viz(x_spikes,y_spikes,display_img[i],1200,i)
-    end
-    gif(anim, "Julia/Cartpole/anim_DVSv2_rand.gif", fps = 20)
+    save("Julia/CartPole/Heatmaps/disp_spikesDVSv2.jld", "display_spikes", display_spikes)
+    # plot()
+    # anim = @animate for i in 1:n_steps
+    #     anim_viz(x_spikes,y_spikes,display_img[i],1200,i)
+    # end
+    # gif(anim, "Julia/Cartpole/anim_DVSv2_rand.gif", fps = 20)
 end
 
 
@@ -95,4 +97,4 @@ end
 # %% run visualization
 
 
-play_env(200,true,true)
+play_env(200,true)

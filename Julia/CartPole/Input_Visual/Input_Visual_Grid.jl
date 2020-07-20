@@ -1,4 +1,5 @@
 using PyCall
+using JLD
 
 gym = pyimport("gym")
 
@@ -6,9 +7,10 @@ torch = pyimport("torch")
 nn    = pyimport("torch.nn")
 f     = pyimport("torch.nn.functional")
 
+
 # %%
 
-include("../StateSpike/StateSpikeGrid.jl")
+include("../../Modules/Gridcells/StateSpikeGrid.jl")
 include("animation.jl")
 
 # %% define the constant cells
@@ -22,18 +24,19 @@ maxs = env.observation_space.high
 mins = env.observation_space.low
 
 borpos = [convert(Float64,mins[1]),convert(Float64,maxs[1])]
-borvpos = [-50.0,50.0]
-bortheta = [convert(Float64,mins[3]),convert(Float64,maxs[3])]
-borvtheta = [-50.0,50.0]
+borvpos = [-15.0,15.0]
+#bortheta = [convert(Float64,mins[3]),convert(Float64,maxs[3])]
+bortheta = [-pi,pi]
+borvtheta = [-15.0,15.0]
 
-for neuron in 1:20
-    res = 0.05
-    dilat = rand()*(1.4-0.9)+0.9
+for neuron in 1:16
+    res = 0.007
+    dilat = rand()*(1.4-0.7)+0.7
     theta = rand()*(2pi/6)-pi/6
     mod_pos = HexModule(res,dilat = dilat, theta = theta, bor_x = borpos, bor_y = bortheta)
     mod_vel = HexModule(res,dilat = dilat, theta = theta, bor_x = borvpos, bor_y = borvtheta)
     push!(cells_tmp_pos,mod_pos)
-    push!(cells_tmp_vel,mod_pos)
+    push!(cells_tmp_vel,mod_vel)
 end
 
 const cells_pos = cells_tmp_pos
@@ -95,7 +98,7 @@ function play_env(n_steps::Int64, render::Bool=false, random::Bool=false)
     done = false
     display_spikes = []
     display_img = []
-    for _ in 1:n_steps
+    for j in 1:n_steps
         if random == false
             action = torch.argmax(Qnet(torch.tensor(obs).float())).item()
         else
@@ -103,21 +106,30 @@ function play_env(n_steps::Int64, render::Bool=false, random::Bool=false)
         end
         obs_new, reward, done, _ = env.step(action)
         if render==true
-            img = env.render(mode = "rgb_array")
-            push!(display_img, convert_rgb(img))
+            # img = env.render(mode = "rgb_array")
+            # push!(display_img, convert_rgb(img))
+            env.render()
         end
-        push!(display_spikes, input_spikes(obs_new,cells_pos,cells_vel))
+        push!(display_spikes,input_spikes(obs_new,cells_pos,cells_vel))
         obs = obs_new
     end
     x_spikes, y_spikes = scatter_spikes(display_spikes)
     env.close()
     env = nothing
-    #scatter(x_spikes,y_spikes)
+    scatter(x_spikes,y_spikes,
+            title ="HexGrid input viz",
+            markersize = 2,
+            xlabel = "Time step",
+            ylabel = "Neuron",
+            legend = false)
+    plot!([64], seriestype = "hline", color = :black)
+    save("Julia/CartPole/Heatmaps/disp_spikesGrid.jld", "display_spikes", display_spikes)
+    #savefig("input_grid.png")
     # plot()
-    anim = @animate for i in 1:n_steps
-        anim_viz(x_spikes,y_spikes,display_img[i],160,i)
-    end
-    gif(anim, "Julia/Cartpole/anim_grid.gif", fps = 20)
+    # anim = @animate for i in 1:n_steps
+    #     anim_viz(x_spikes,y_spikes,display_img[i],160,i)
+    # end
+    # gif(anim, "Julia/Cartpole/Input_Visual/anim_grid.gif", fps = 20)
 end
 
 

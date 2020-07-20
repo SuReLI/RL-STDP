@@ -1,14 +1,14 @@
 
-include("../Modules/new_net.jl")
+include("../Modules/Old_net/new_net.jl")
 
 # %%
 
-n = Network(237,0.1,125,[12,56,56,3])
+n = Network(1000, 0.1, 800)
 
 # %%
 
 function post(neuron,connection)
-    return findall(x->x==1,connection[neuron,:])
+    return findall(x->x==1,connection[neuron,:]) # change for new_net_col
 end
 
 const n1 = 2
@@ -32,7 +32,7 @@ function reward!(n1f::Array{Int64},n2f::Array{Int64},rew::Array{Int64},spiked::A
     end
 end
 
-shist = zeros(10*3600,2)
+shist = zeros(10*1001,2)
 
 
 
@@ -40,20 +40,21 @@ shist = zeros(10*3600,2)
 
 
 
-@inbounds for sec in 0:3599
+@inbounds for sec in 0:1000
+    @show sec
     @time @inbounds for msec in 1:1000
         time = 1000*sec+msec
-        s_inc = false
+        train = false
         if msec%10 == 0
-            s_inc = true
+            train = true
         end
-        spiked = step!(n,true,s_inc)
+        spiked = step!(n,train)
         reward!(n1f,n2f,rew,spiked,time)
         if time in rew
             n.da += 0.5
         end
         if msec%100==0
-            shist[div(time,100),:] .= n.s[n1,n2],n.sd[n1,n2]
+            shist[div(time,100),:] .= n.s[n1,n2],n.sd[n1,n2] # change for new_net_col
         end
     end
 end
