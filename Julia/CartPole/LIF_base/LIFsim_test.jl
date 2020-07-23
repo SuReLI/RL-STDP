@@ -31,10 +31,10 @@ end
 
 function play_episode(net::Network, n_steps::Int64 = 200)
     env = gym.make("CartPole-v1")
-    env.seed(0)
+    #env.seed(0)
     obs = env.reset()
     rng_action = Random.MersenneTwister(0)
-    win_size = 20 # ms
+    win_size = 40 # ms
     spike_hist = Array{Int64}[]
     vhist = Float64[]
     tot_reward = 0
@@ -76,8 +76,8 @@ function play_episode(net::Network, n_steps::Int64 = 200)
 end
 
 # %% tests
-params = YAML.load(open("Julia/CartPole/LIF_base/cfglif.yml"))
-n = Network([4,8,2], params)
+params = YAML.load(open("Julia/CartPole/LIF_base/cfglif4820.yml"))
+n = Network([4,8,20], params)
 r, shist,vhist = play_episode(n)
 
 

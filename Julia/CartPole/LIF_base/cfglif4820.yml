@@ -3,12 +3,12 @@ c: -70.0
 m: 0.8
 std: 0.4
 imin: 0.0
-imax: 40.0
+imax: 27.0
 
 
 wei: 0
 wie: 0
-taulif: 4 #ms
+taulif: 5 #ms
 
 theta: 0.004
 ttheta: 0.99

@@ -142,7 +142,7 @@ function input_LIF!(net::Network, input_spikes::Array{Tuple{Int64,Float64}})
     indices = [input_spikes[i][1] for i in eachindex(input_spikes)]
     intensity = [input_spikes[i][2] for i in eachindex(input_spikes)]
     net.I[indices] .+= (max_current-min_current) .* intensity .+ min_current
-    net.v[indices] .= @. net.v[indices] + net.param["taulif"]*(-net.v[indices]+net.I[indices]+net.param["c"])
+    net.v[indices] .= @. net.v[indices] + (1/net.param["taulif"])*(-net.v[indices]+net.I[indices]+net.param["c"])
 end
 
 function spike!(net::Network)
@@ -204,7 +204,8 @@ function spike_LIF!(net::Network)
     spiked = findall(x->x>net.param["vthresh"],net.v .- net.ho)
     spiked_e = filter(x->(x in net.i.exc), spiked)
     spiked_ho = filter(x-> x > net.arch[1], spiked_e)
-    net.ho[spiked_ho] .+= net.param["theta"]
+    net.ho[spiked_e] .+= net.param["theta"] #homeostasis on every layer
+    #net.ho[spiked_ho] .+= net.param["theta"] #homeostasis on all but first layer
     net.v[spiked] .= net.param["c"]
     # increment current
     for neuron in spiked
@@ -222,7 +223,7 @@ function spike_LIF!(net::Network)
     end
 
     #time step (LIF model)
-    net.v .= @. net.v + net.param["taulif"]*(-net.v+net.I+net.param["c"])
+    net.v .= @. net.v + (1/net.param["taulif"])*(-net.v+net.I+net.param["c"])
     net.trace_e[spiked_e] .= 0.1
 
     # LTP & LTD (STDP)

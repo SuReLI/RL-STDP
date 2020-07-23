@@ -1,4 +1,4 @@
-vthresh: -50.0
+vthresh: -68.5
 vthresh_u: 100.0
 vthresh_d: -100.0
 
@@ -18,7 +18,7 @@ de: 9.84
 de_u: 20.0
 de_d: 2.0
 
-m: 0.53
+m: 0.6
 m_u: 0.85
 m_d: 0.15
 
@@ -46,7 +46,7 @@ apre_d: 0.3
 
 
 # Gaussgrid
-imax: 50.0
+imax: 15.0
 imax_u: 60.0
 imax_d: 0.0
 
@@ -74,6 +74,6 @@ di_d: 0.1
 
 
 # LIF
-taulif: 0.45
-taulif_u: 0.8
-taulif_d: 0.3
+taulif: 5
+taulif_u: 10
+taulif_d: 3

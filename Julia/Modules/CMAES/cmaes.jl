@@ -42,6 +42,22 @@ function CMAES(;N=2, μ=1, λ=10, τ=sqrt(N), τ_c=N^2, τ_σ=sqrt(N))
     CMAES(N, μ, λ, τ, τ_c, τ_σ, population, offspring, F_µ, F_λ, C, s, s_σ, σ, E, W, x)
 end
 
+function CMAES(init::Array{Float64}; N=2, μ=1, λ=10, τ=sqrt(N), τ_c=N^2, τ_σ=sqrt(N))
+    x = init
+    #x = clamp.(x, -1.0, 1.0)
+    population = fill(x, µ)
+    offspring = Array{Array{Float64}}(undef, λ)
+    F_µ = Inf .* ones(µ)
+    F_λ = Inf .* ones(λ)
+    C = Array(Diagonal{Float64}(I, N))
+    s = zeros(N)
+    s_σ = zeros(N)
+    σ = 1.0
+    E = zeros(N, λ)
+    W = zeros(N, λ);
+    CMAES(N, μ, λ, τ, τ_c, τ_σ, population, offspring, F_µ, F_λ, C, s, s_σ, σ, E, W, x)
+end
+
 function step!(c::CMAES; obj=objective, visualize=false, anim=Nothing)
     # L1
     rng_offspring = Random.MersenneTwister(1234)

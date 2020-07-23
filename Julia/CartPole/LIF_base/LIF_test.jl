@@ -1,7 +1,7 @@
-
+using Plots
 
 function lif!(v,I)
-    v = v + 0.8*(I-v-70)
+    v = v + 0.2*(I-v-70)
     return v
 end
 

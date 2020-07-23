@@ -1,10 +1,16 @@
 # %% imports
 
+include("save_param.jl")
+using Statistics
 using PyCall
 gym = pyimport("gym")
-
 include("../../Modules/Networks/net_arch.jl")
 include("../../Modules/Poisson/PoissonStateSpike.jl")
+include("../../Modules/simviz.jl")
+
+# %% Read the results
+
+results = load_param("Julia/CartPole/LIF_base/results.jld")
 
 # %% sim functions
 
@@ -25,15 +31,25 @@ function left_right(count_spikes::Array{Float64}, n_left::Int64, n_right::Int64)
     return action, sl, sr
 end
 
-# %%
+function set_weight!(net::Network, genes_w::Array{Float64})
+    w = net.s.e
+    for mat_idx in 1:length(w)
+        for idx in eachindex(w[mat_idx])
+            offset = sum([length(mat) for mat in w[1:mat_idx-1]])
+            net.s.e[mat_idx][idx] = (genes_w[idx+offset]+1)/2
+        end
+    end
+end
 
-function play_episode(net::Network, matalpha::Array{Float64,2}, n_steps::Int64 = 200)
+
+# %% main functions
+
+function play_episode(net::Network, matalpha::Array{Float64,2}, render::Bool = false, n_steps::Int64 = 200)
     env = gym.make("CartPole-v1")
-    env.seed(0)
     obs = env.reset()
-    rng_action = Random.MersenneTwister(0)
+    #rng_action = Random.MersenneTwister(0)
     win_size = 40 # ms
-    #spike_hist = Array{Int64}[]
+    spike_hist = Array{Int64}[]
     tot_reward = 0
     N_rand = 0
     N_tot = 0
@@ -47,14 +63,14 @@ function play_episode(net::Network, matalpha::Array{Float64,2}, n_steps::Int64 =
             if msec >= length(net.arch)-1
                 count_tot .+= influence*count_spikes(net.arch, spiked, length(net.arch))
                 influence *= 0.95
-                #push!(spike_hist,spiked)
+                push!(spike_hist,spiked)
             end
         end
         n_left = div(net.arch[end],2)
         n_right = net.arch[end] - n_left
         action, sl, sr = left_right(count_tot, n_left, n_right)
         if sl == sr
-            action = rand(rng_action, 0:1)
+            action = rand(0:1)
             tot_reward -= 0.9
             N_rand += 1
         end
@@ -62,6 +78,9 @@ function play_episode(net::Network, matalpha::Array{Float64,2}, n_steps::Int64 =
         #push!(score_hist[1], sl)
         #push!(score_hist[2], sr)
         obs_new, reward, done, _ = env.step(action)
+        if render==true
+            env.render()
+        end
         tot_reward += 1
         if done
             break
@@ -72,48 +91,11 @@ function play_episode(net::Network, matalpha::Array{Float64,2}, n_steps::Int64 =
     env.close()
     env = nothing
     Base.GC.gc()
-    return tot_reward
+    return tot_reward, spike_hist
 end
 
-function set_weight!(net::Network, genes_w::Array{Float64})
-    w = net.s.e
-    for mat_idx in 1:length(w)
-        for idx in eachindex(w[mat_idx])
-            offset = sum([length(mat) for mat in w[1:mat_idx-1]])
-            net.s.e[mat_idx][idx] = (genes_w[idx+offset]+1)/2
-        end
-    end
-end
 
-function rescale(genes::Array{Float64}, tunekeys::Array{String})
-    cfg = YAML.load(open("Julia/CartPole/LIF_base/cfg_cmaes_lif.yml"))
-    N = length(genes)
-    scaled_genes = zeros(N)
-    n_param = length(tunekeys)
-    for idx in 1:N
-        if idx <= n_param
-            down = cfg[tunekeys[idx]*"_d"]
-            up = cfg[tunekeys[idx]*"_u"]
-            scaled_genes[idx] = ((genes[idx]+1)*0.5)*(up-down) + down
-        elseif idx > n_param
-            scaled_genes[idx] = (genes[idx]+1)*0.5
-        end
-    end
-    return scaled_genes
-end
-
-function generate(genes_p::Array{Float64}, tunekeys::Array{String})
-    #params = Dict(tunekeys .=> rescale(genes_p,tunekeys))
-    keys = ["imax","vthresh","imin", "ae", "ai", "b", "c", "de", "di", "apost", "apre", "wie", "wei" ,"tda", "wmax", "theta", "ttheta", "std", "m", "taulif"]
-    values = [30.0, -68.7,0.0, 0, 0, 0, -70, 0, 0, 0, 0, 0, 0, 0.995, 1, 0.004, 0.99, 0.3, 0.6, 5]
-    for idx in 1:length(keys)
-        params[keys[idx]] = values[idx]
-    end
-    return params
-end
-
-function objective(genes::Array{Float64})
-    #
+function sim(genes, render::Bool = false, n_steps::Int64 = 200)
     genes_alpha = genes[1:16]
     genes_w = genes[17:end]
     matalpha = reshape(genes_alpha, (4,4))
@@ -121,8 +103,58 @@ function objective(genes::Array{Float64})
     params = YAML.load(open("Julia/CartPole/LIF_base/cfglif4820.yml"))
     n = Network([4,8,20], params)
     set_weight!(n,genes_w)
-    reward = play_episode(n, matalpha)
-    return -reward
+    reward, spike_hist = play_episode(n, matalpha, render, n_steps)
+    return reward, spike_hist, n.arch
 end
 
+# %% test robustness
+
+function test_random(results::Dict)
+    mean_reward = Float64[]
+    for i in 1:length(results["fit"])
+        genes = results["weights"][i]
+        tmp_reward = []
+        for ep in 1:30
+            reward, _, _ = sim(genes)
+            push!(tmp_reward, reward)
+        end
+        push!(mean_reward, mean(tmp_reward))
+    end
+    return mean_reward
+end
+
+means = test_random(results)
+
+# %% Inhibitor vs. Exciting populations
+
+function test_inhexc(results::Dict)
+    inh = Float64[]
+    for i in 1:length(results["fit"])
+        n, n_i = 0, 0
+        for w in results["weights"][i]
+            n += 1
+            n_i += (w<0)
+        end
+        push!(inh, n_i/n)
+    end
+    return inh
+end
+
+inh = test_inhexc(results)
+
+
+# %% visualize the activity in the network
+
+function activiz(results::Dict, indiv::Int64)
+    genes = results["weights"][indiv]
+    r, spike_hist, arch = sim(genes)
+    spike_histogram(arch, spike_hist)
+end
+
+
+activiz(results, 19)
+
 # %%
+
+genes = results["weights"][20]
+r, spike_hist, arch = sim(genes, true, 500)

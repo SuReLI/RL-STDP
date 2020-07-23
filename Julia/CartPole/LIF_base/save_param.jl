@@ -19,6 +19,18 @@ function save_param(best_fit::Array{Float64}, best::Array{Array{Float64}}, tunek
     save("results.jld", "results", results)
 end
 
+function save_param(best_fit::Array{Float64}, best::Array{Array{Float64}})
+    results = Dict()
+    results["weights"] = Array{Float64}[]
+    results["fit"] = Float64[]
+    for i in 1:length(best)
+        genes_w = best[i]
+        push!(results["weights"], genes_w)
+        push!(results["fit"], best_fit[i])
+    end
+    save("results.jld", "results", results)
+end
+
 function load_param(filepath::String)
     results = load(filepath, "results")
     parameters = Dict()
