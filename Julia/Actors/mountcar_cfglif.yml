@@ -1,0 +1,40 @@
+
+
+
+#################tunable training parameters ###########
+
+# Architecture
+arch: [8,8,8]
+
+# params
+taulif: 5 #ms
+imin: 1.0
+vthresh: 1.0 #mV
+c: 0.0 # mV (vreset)
+wmax: 1.1
+
+########################################################@
+
+
+
+
+
+#Unrelevant params for the simulation
+ae: 0.02                                        # tunable
+ai: 0.1                                         # tunable
+b: 0.2 # (involved in the update of u)          # tunable
+de: 8.0                                         # tunable
+di: 2.0                                         # tunable
+tda: 0.995 # dopamine decay
+theta: 0.0 # mV increase in threshold
+ttheta: 0.998 # time decay of homeostasis
+wei: 0.0
+wie: 0.0
+apost: 0.1
+apre: 0.15
+tde: 0.99 # tau = 100ms ( eligibity decay )
+ttrace: 0.9 # STDP trace decay
+m: 0.8
+std: 0.3
+eta: 0.001 # learning rate
+wee: 1.0
