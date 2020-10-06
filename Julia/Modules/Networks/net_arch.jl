@@ -3,7 +3,7 @@ using YAML
 using Plots
 using Random
 
-parameters = YAML.load(open("/Users/titou/Documents/PFE/RL-STDP/Julia/Modules/cfg.yml"))
+parameters = YAML.load(open("Julia/Modules/cfg.yml"))
 
 mutable struct Weights
 
