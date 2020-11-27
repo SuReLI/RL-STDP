@@ -1,5 +1,5 @@
 
-include("../Modules/new_net_col_sep.jl")
+include("Old_net/new_net_col_sep.jl")
 
 # %%
 

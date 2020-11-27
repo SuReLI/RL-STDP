@@ -1,7 +1,7 @@
 # %% Modules
 
-include("../../Modules/Old_net/DASTDP.jl")
-include("../../Modules/Old_net/NeuronModel.jl")
+include("DASTDP.jl")
+include("NeuronModel.jl")
 
 using .DASTDP
 using .NeuronModel
@@ -70,7 +70,7 @@ end
 net = NeuralNet()
 
 for sec in 0:T-1
-    @time for msec in 1:1000
+    for msec in 1:1000
         net.I = 13*(rand(N).-0.5)
         time = 1000*sec+msec
         fired = findall(x->x>=thresh,net.v)

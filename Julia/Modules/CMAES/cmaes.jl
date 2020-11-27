@@ -27,8 +27,7 @@ mutable struct CMAES
 end
 
 function CMAES(;N=2, μ=1, λ=10, τ=sqrt(N), τ_c=N^2, τ_σ=sqrt(N))
-    x = randn(N)
-    #x = clamp.(x, -1.0, 1.0)
+    x = randn(N)*100
     population = fill(x, µ)
     offspring = Array{Array{Float64}}(undef, λ)
     F_µ = Inf .* ones(µ)
@@ -44,7 +43,6 @@ end
 
 function CMAES(init::Array{Float64}; N=2, μ=1, λ=10, τ=sqrt(N), τ_c=N^2, τ_σ=sqrt(N))
     x = init
-    #x = clamp.(x, -1.0, 1.0)
     population = fill(x, µ)
     offspring = Array{Array{Float64}}(undef, λ)
     F_µ = Inf .* ones(µ)
@@ -66,7 +64,6 @@ function step!(c::CMAES; obj=objective, visualize=false, anim=Nothing)
         c.E[:,i] = randn(rng_offspring, c.N)
         c.W[:,i] = c.σ * (sqrt_c * c.E[:,i])
         c.offspring[i] = c.x + c.W[:,i]
-        #c.offspring[i] = clamp.(c.offspring[i], -1.0, 1.0)
         c.F_λ[i] = obj(c.offspring[i])
     end
     # Select new parent population
@@ -77,7 +74,7 @@ function step!(c::CMAES; obj=objective, visualize=false, anim=Nothing)
     end
     # L2
     w = vec(mean(c.W[:,idx], dims=2))
-    c.x += w
+    c.x += w/5
     # L3
     c.s = (1.0 - 1.0/c.τ)*c.s + (sqrt(c.μ/c.τ * (2.0 - 1.0/c.τ))/c.σ)*w
     # L4

@@ -1,0 +1,47 @@
+vthresh: 1.0 #mV
+c: 0.0 # mV (vreset)                          # tunable
+wee: 1.0
+wmax: 1.1
+imin: 0.5
+imax: 1.5
+#################tunable training parameters ###########
+#learning memory (time constants)
+tda: 0.995
+tde: 0.99 # tau = 1000ms
+ttrace: 0.95
+taulif: 5 #ms
+
+da_inc: 0.0001
+
+m: 0.7
+std: 0.1
+
+#STDP
+apost: 0.014
+apre: 0.019
+
+
+########################################################@
+
+
+
+
+
+# Architecture
+arch: [8,8,8]
+matalpha: [0.0 0.0 0.0; 0.0 0.0 0.0; 0.0 0.0 0.0]
+
+# Izhikevic
+ae: 0.02                                        # tunable
+ai: 0.1                                         # tunable
+b: 0.2 # (involved in the update of u)          # tunable
+de: 8.0                                         # tunable
+di: 2.0                                         # tunable
+
+# Inhibition
+wei: 0.0
+wie: 0.0
+
+# Homeostasis
+theta: 0.0 # mV increase in threshold
+ttheta: 0.998 # time decay of homeostasis

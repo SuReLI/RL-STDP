@@ -1,5 +1,6 @@
 
-include("../Modules/Old_net/new_net.jl")
+include("Old_net/new_net.jl")
+using Statistics
 
 # %%
 
@@ -32,15 +33,15 @@ function reward!(n1f::Array{Int64},n2f::Array{Int64},rew::Array{Int64},spiked::A
     end
 end
 
-shist = zeros(10*1001,2)
+shist = zeros(10*3601,3)
 
-
+idx = findall(x -> x != 0, n.connection)
 
 # %%
 
 
 
-@inbounds for sec in 0:1000
+@inbounds for sec in 0:3600
     @show sec
     @time @inbounds for msec in 1:1000
         time = 1000*sec+msec
@@ -54,7 +55,8 @@ shist = zeros(10*1001,2)
             n.da += 0.5
         end
         if msec%100==0
-            shist[div(time,100),:] .= n.s[n1,n2],n.sd[n1,n2] # change for new_net_col
+            shist[div(time,100),1:2] .= n.s[n1,n2],n.sd[n1,n2] # change for new_net_col
+            shist[div(time,100),3] = mean(n.s[idx])
         end
     end
 end
@@ -67,7 +69,9 @@ x1 = 0.1.*collect(1:length(shist[:,1]))
 y1 = shist[:,1]
 x2 = x1
 y2 = shist[:,2]
+y3 = shist[:,3]
 fig = plot()
 plot!(x1,y1,color="blue",label="synapse weight", legend = true)
 plot!(x2,y2,color="green",label="eligibilty trace", legend = true)
+plot!(x2, y3, color = "grey", label = "mean weight", legend = true)
 xlabel!("Time (sec)")

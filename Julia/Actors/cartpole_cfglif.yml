@@ -38,3 +38,4 @@ m: 0.8
 std: 0.3
 eta: 0.001 # learning rate
 wee: 1.0
+da_inc: 0.01

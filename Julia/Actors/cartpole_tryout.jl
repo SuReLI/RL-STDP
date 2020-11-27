@@ -1,5 +1,6 @@
 # %% imports
-
+using Cambrian
+using EvolutionaryStrategies
 using JLD
 using PyCall
 using Statistics
@@ -7,22 +8,21 @@ gym = pyimport("gym")
 include("../Modules/Networks/net_arch.jl")
 include("../Modules/Poisson/PoissonStateSpike.jl")
 include("cartpole_fitness.jl")
-include("gensaver.jl")
+
 
 # %% read the results file
 #checker results
-results = load("Julia/Actors/results_sNES_cartpole.jld", "results")
-@show results.values["fit"]
+elites = load("Julia/Actors/cartpoleElites/sNESelites_cartpole_1.jld", "elites")
+# @show typeof(elites)
 
 # %% evaluate functions
 
-function create_net(res::Results, indiv::Int64)
+function create_net(elites::Array{AbstractESIndividual,1}, indiv::Int64)
     params = YAML.load(open("Julia/Actors/cartpole_cfglif.yml"))
     arch = params["arch"]
 
-    individual = get_indiv(res,indiv)
-    genes = individual["genes"]
-    
+    genes = elites[indiv].genes
+
     # Input linear combination
     genes_alpha = map(x->borne(x,-1.0, 1.0),genes[1:arch[1]*4])
     matalpha = reshape(genes_alpha, (arch[1],4))
@@ -37,53 +37,25 @@ function create_net(res::Results, indiv::Int64)
 
     return n, matalpha
 end
-#
+
 # run one episode with no seeds
-function sim(res::Results, indiv::Int64)
-    net, matalpha = create_net(res, indiv)
-    reward = play_episode(net, matalpha)
+function sim(elites::Array{AbstractESIndividual,1}, indiv::Int64)
+    net, matalpha = create_net(elites, indiv)
+    reward = play_episode(net, matalpha, rng_seed = false)
     return reward
 end
-
-# function sim(res::Results, indiv::Int64)
-#
-#     individual = get_indiv(res,indiv)
-#     genes = individual["genes"]
-#     @show genes
-#     # load the optimisation parameters
-#     params = YAML.load(open("Julia/Actors/cartpole_cfglif.yml"))
-#     arch = params["arch"]
-#
-#     # Input linear combination
-#     genes_alpha = map(x->borne(x,-1.0, 1.0),genes[1:arch[1]*4])
-#     matalpha = reshape(genes_alpha, (arch[1],4))
-#
-#     # Weights of the network
-#     genes_w = genes[arch[1]*4+1:end]
-#
-#     # Initialize network
-#     n = Network(arch, params)
-#     exc, inh = ei_idx(arch)
-#     set_weight!(n,genes_w, exc, inh)
-#
-#     # Compute the fitness
-#     reward = play_episode(n, matalpha)
-#     return reward # (put - if ES try to minimize by default)
-# end
-
-
 
 
 # %% evaluate the individuals
 
 # test robustness
 
-function test_random(res::Results)
+function test_random(elites::Array{AbstractESIndividual,1})
     mean_reward = Float64[]
-    for i in 1:res.n_indiv
+    for i in 1:length(elites)
         tmp_reward = []
-        for ep in 1:1
-            reward = sim(res,i)
+        for ep in 1:30
+            reward = sim(elites,i)
             push!(tmp_reward, reward)
         end
         push!(mean_reward, mean(tmp_reward))
@@ -91,7 +63,7 @@ function test_random(res::Results)
     return mean_reward
 end
 
-function test_random(res::Results, indiv::Int64)
+function test_random(elites::Array{AbstractESIndividual,1}, indiv::Int64)
     tmp_reward = []
     for ep in 1:30
         reward = sim(res,i)
@@ -100,5 +72,3 @@ function test_random(res::Results, indiv::Int64)
     mean_r = mean(tmp_reward)
     return mean_r
 end
-
-means = test_random(results)

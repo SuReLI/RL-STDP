@@ -86,7 +86,7 @@ function DA_STDP_step(STDP::Array{Float64,2},DA::Float64,msec::Int64) # Module D
 end
 
 function synweight_step(sd::Array{Float64,2},s::Array{Float64,2},DA::Float64,sm::Int64=4) # Module DA_STDP
-    @time s[1:Ne,:] .= clamp.(s[1:Ne,:] .+ ((0.002+DA) .* sd[1:Ne,:]),0,sm)
+    s[1:Ne,:] .= clamp.(s[1:Ne,:] .+ ((0.002+DA) .* sd[1:Ne,:]),0,sm)
     sd .= 0.99.*sd
     return s,sd
 end

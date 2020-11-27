@@ -186,7 +186,7 @@ function scatter_grid!(hex_grid::HexGrid)
         push!(x,point[1])
         push!(y,point[2])
     end
-    display(scatter!(x,y,legend = false))
+    display(scatter!(x,y,legend = false, xlabel = "Variable 1", ylabel = "Variable 2"))
     nothing
 end
 
@@ -199,15 +199,15 @@ end
 
 
 
-# # %% hexmodule test
-#
-# borx = [0.0,1.0]
-# bory = [0.0,1.0]
-# hexmod = HexModule(0.03, dilat = 1.0, theta = pi/10, bor_x = borx,
-#                    bor_y = bory, mod_size = 2)
-#
-# plot(size = (600,600))
-# scatter_grid!(hexmod.grids[1])
+# %% hexmodule test
+
+borx = [0.0,1.0]
+bory = [0.0,1.0]
+hexmod = HexModule(0.03, dilat = 1.0, theta = pi/10, bor_x = borx,
+                   bor_y = bory, mod_size = 2)
+
+plot(size = (600,600))
+scatter_grid!(hexmod.grids[1])
 #
 #
 # # %%

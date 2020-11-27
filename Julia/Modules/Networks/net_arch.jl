@@ -14,7 +14,7 @@ mutable struct Weights
 
     function Weights(arch::Array{Int64}, param::Dict = parameters)
         # exc
-        Random.seed!(0)
+        #Random.seed!(0)
         e = Array{Float64,2}[]
         de = Array{Float64,2}[]
         for l in 1:length(arch)-1
@@ -301,7 +301,7 @@ function weight_viz(net::Network, method::String = "histogram")
         h = []
         for i in 1:length(net.arch)-1
             h_tmp = heatmap(weights[i],
-                            xlabel = "connection matrix layer $(i)")
+                            xlabel = "Connection matrix layer $(i) - $(i+1)")
             push!(h, h_tmp)
         end
         display(plot(h..., layout = length(net.arch)-1))

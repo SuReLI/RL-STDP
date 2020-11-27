@@ -167,7 +167,7 @@ function spike!(net::Network)
     for neuron in spiked
         if neuron in net.exc
             net.sd[neuron,:] .+= 1.0 .* net.STDP[1:net.n_exc] #parameter (a_post) post synaptic spike
-            net.sd[1:n_exc,neuron] .-= 1.5 .* net.STDP[1:net.exc] # parameter (a_pre) pre synaptic spike
+            net.sd[1:net.n_exc,neuron] .-= 1.5 .* net.STDP[1:net.exc] # parameter (a_pre) pre synaptic spike
         end
     end
     # time decay

@@ -4,6 +4,7 @@ using Clustering
 using OrderedCollections
 
 include("create_mat.jl")
+include("hclustrecipe.jl")
 
 # %% Clustering functions
 
@@ -76,6 +77,18 @@ end
 function one_count(z::Array{Int64})
     return sum([z[i] == 1 for i in 1:length(z)])
 end
+
+function plot_dend(mc::MatrixClust;  dist::String = "euclidean", metric::Symbol = :single)
+    d = compute_d(mc, dist)
+    h_clust = hclust(d, linkage = metric)
+    display(plot(hclustplot(h_clust, true),
+                seriestype = :path,
+                ylabel = "Height",
+                grid=false,
+                legend = false,
+                xlabel = "M_alpha lines"))
+end
+
 
 
 # %% Main functions (run the best parameters research and then use those parameters to label the matrices)
